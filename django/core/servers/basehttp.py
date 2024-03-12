@@ -253,14 +253,15 @@ class WSGIRequestHandler(simple_server.WSGIRequestHandler):
         handler.run(self.server.get_app())
 
 
+#server服务运行函数
 def run(
     addr,
     port,
-    wsgi_handler,
+    wsgi_handler, # wsgi处理函数handle
     ipv6=False,
     threading=False,
-    on_bind=None,
-    server_cls=WSGIServer,
+    on_bind=None, # bind回调函数2
+    server_cls=WSGIServer, # wsgi server类
 ):
     server_address = (addr, port)
     if threading:

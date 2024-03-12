@@ -82,7 +82,7 @@ class CommandParser(ArgumentParser):
             )
         return super().add_subparsers(**kwargs)
 
-
+# 处理arg命令设置：设置DJANGO_SETTINGS_MODULE环境变量，和path搜索路径
 def handle_default_options(options):
     """
     Include any default options that all commands should accept here
@@ -393,6 +393,7 @@ class BaseCommand:
         parser = self.create_parser(prog_name, subcommand)
         parser.print_help()
 
+    # 命令执行入口（传入命令参数）
     def run_from_argv(self, argv):
         """
         Set up any environment changes requested (e.g., Python path
@@ -402,9 +403,12 @@ class BaseCommand:
         ``Exception`` is not ``CommandError``, raise it.
         """
         self._called_from_command_line = True
-        parser = self.create_parser(argv[0], argv[1])
 
+        # 创建命令行解析器
+        parser = self.create_parser(argv[0], argv[1])
+        # 解析获取参数
         options = parser.parse_args(argv[2:])
+
         cmd_options = vars(options)
         # Move positional args out of options to mimic legacy optparse
         args = cmd_options.pop("args", ())

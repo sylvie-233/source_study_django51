@@ -22,7 +22,7 @@ naiveip_re = _lazy_re_compile(
     re.X,
 )
 
-
+# runserver命令类（服务运行）
 class Command(BaseCommand):
     help = "Starts a lightweight web server for development."
 
@@ -35,6 +35,7 @@ class Command(BaseCommand):
     default_addr_ipv6 = "::1"
     default_port = "8000"
     protocol = "http"
+    # WSGI服务实现类
     server_cls = WSGIServer
 
     def add_arguments(self, parser):
@@ -111,15 +112,18 @@ class Command(BaseCommand):
             self._raw_ipv6 = self.use_ipv6
         self.run(**options)
 
+    # server服务运行
     def run(self, **options):
         """Run the server, using the autoreloader if needed."""
         use_reloader = options["use_reloader"]
 
         if use_reloader:
+            # 热重载运行
             autoreload.run_with_reloader(self.inner_run, **options)
         else:
             self.inner_run(None, **options)
 
+    #
     def inner_run(self, *args, **options):
         # If an exception was silenced in ManagementUtility.execute in order
         # to be raised in the child process, raise it now.
@@ -169,6 +173,7 @@ class Command(BaseCommand):
                 self.stdout.write(shutdown_message)
             sys.exit(0)
 
+    # 端口绑定成功回调
     def on_bind(self, server_port):
         quit_command = "CTRL-BREAK" if sys.platform == "win32" else "CONTROL-C"
 

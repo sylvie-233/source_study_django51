@@ -26,6 +26,7 @@ from django.core.management.color import color_style
 from django.utils import autoreload
 
 
+# 从目录下的commands子目录查找 命令.py  文件（每个命令脚本中都必有一个Command类）
 def find_commands(management_dir):
     """
     Given a path to a management directory, return a list of all the command
@@ -38,7 +39,7 @@ def find_commands(management_dir):
         if not is_pkg and not name.startswith("_")
     ]
 
-
+# 加载命令脚本的Command类
 def load_command_class(app_name, name):
     """
     Given a command name and an application name, return the Command
@@ -48,7 +49,8 @@ def load_command_class(app_name, name):
     module = import_module("%s.management.commands.%s" % (app_name, name))
     return module.Command()
 
-
+# dict { key(命令名) : value(django.core|app名称) }
+# 获取所有的命令脚本（默认脚本（django.core.management.commands）以及每个app下的commands目录）
 @functools.cache
 def get_commands():
     """
@@ -73,6 +75,7 @@ def get_commands():
     if not settings.configured:
         return commands
 
+    # 加载每个app下的command
     for app_config in reversed(apps.get_app_configs()):
         path = os.path.join(app_config.path, "management")
         commands.update({name: app_config.name for name in find_commands(path)})
@@ -194,6 +197,7 @@ def call_command(command_name, *args, **options):
     return command.execute(*args, **defaults)
 
 
+# 命令工具集类
 class ManagementUtility:
     """
     Encapsulate the logic of the django-admin and manage.py utilities.
@@ -243,6 +247,7 @@ class ManagementUtility:
 
         return "\n".join(usage)
 
+    # 子命令Command执行
     def fetch_command(self, subcommand):
         """
         Try to fetch the given subcommand, printing a message with the
@@ -273,6 +278,8 @@ class ManagementUtility:
             klass = app_name
         else:
             klass = load_command_class(app_name, subcommand)
+
+        # 返回Command类
         return klass
 
     def autocomplete(self):
@@ -350,11 +357,13 @@ class ManagementUtility:
         # For more details see #25420.
         sys.exit(0)
 
+    # django-admin执行入口
     def execute(self):
         """
         Given the command-line arguments, figure out which subcommand is being
         run, create a parser appropriate to that command, and run it.
         """
+        # 获取子命令：
         try:
             subcommand = self.argv[1]
         except IndexError:
@@ -379,18 +388,20 @@ class ManagementUtility:
             pass  # Ignore any option errors at this point.
 
         try:
-            settings.INSTALLED_APPS
+            settings.INSTALLED_APPS # LazySettings
         except ImproperlyConfigured as exc:
             self.settings_exception = exc
         except ImportError as exc:
             self.settings_exception = exc
 
+        # runserver命令执行（django.setup()安装app）
         if settings.configured:
             # Start the auto-reloading dev server even if the code is broken.
             # The hardcoded condition is a code smell but we can't rely on a
             # flag on the command class because we haven't located it yet.
             if subcommand == "runserver" and "--noreload" not in self.argv:
                 try:
+                    # 异常处理，并调用django.setup()函数开始运行
                     autoreload.check_errors(django.setup)()
                 except Exception:
                     # The exception will be raised later in the child process
@@ -417,6 +428,7 @@ class ManagementUtility:
 
         self.autocomplete()
 
+        # help命令执行
         if subcommand == "help":
             if "--commands" in args:
                 sys.stdout.write(self.main_help_text(commands_only=True) + "\n")
@@ -436,6 +448,7 @@ class ManagementUtility:
             self.fetch_command(subcommand).run_from_argv(self.argv)
 
 
+# django-admin命令执行人口函数
 def execute_from_command_line(argv=None):
     """Run a ManagementUtility."""
     utility = ManagementUtility(argv)

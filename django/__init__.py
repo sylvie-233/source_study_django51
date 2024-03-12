@@ -8,7 +8,7 @@ VERSION = (5, 1, 0, "alpha", 0)
 # 获取djanggo版本号
 __version__ = get_version(VERSION)
 
-# TODO django setup 构建函数，还不知道有什么用？
+# 构建函数，在ManagementUtility工具集类中的execute中执行
 def setup(set_prefix=True):
     """
     Configure the settings (this happens as a side effect of accessing the

@@ -110,6 +110,7 @@ class WSGIRequest(HttpRequest):
     POST = property(_get_post, _set_post)
 
 
+# WSGI请求处理类
 class WSGIHandler(base.BaseHandler):
     request_class = WSGIRequest
 
@@ -120,7 +121,10 @@ class WSGIHandler(base.BaseHandler):
     def __call__(self, environ, start_response):
         set_script_prefix(get_script_name(environ))
         signals.request_started.send(sender=self.__class__, environ=environ)
+        # 请求参数封装成request对象
         request = self.request_class(environ)
+
+        # 路由分发实现的关键步骤！！！
         response = self.get_response(request)
 
         response._handler_class = self.__class__

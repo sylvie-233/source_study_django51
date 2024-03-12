@@ -109,6 +109,7 @@ class LazySettings(LazyObject):
         super().__delattr__(name)
         self.__dict__.pop(name, None)
 
+    # 定义配置对象
     def configure(self, default_settings=global_settings, **options):
         """
         Called to manually configure the settings. The 'default_settings'
@@ -117,11 +118,13 @@ class LazySettings(LazyObject):
         """
         if self._wrapped is not empty:
             raise RuntimeError("Settings already configured.")
+        # 配置对象继承了 默认全局配置对象
         holder = UserSettingsHolder(default_settings)
         for name, value in options.items():
             if not name.isupper():
                 raise TypeError("Setting %r must be uppercase." % name)
             setattr(holder, name, value)
+        # 获取配置对象的属性从_wrapped对象中获取（__getattr__）
         self._wrapped = holder
 
     @staticmethod
@@ -170,19 +173,20 @@ class Settings:
         mod = importlib.import_module(self.SETTINGS_MODULE)
 
         tuple_settings = (
-            "ALLOWED_HOSTS",
-            "INSTALLED_APPS",
-            "TEMPLATE_DIRS",
+            "ALLOWED_HOSTS", # 允许访问的主机
+            "INSTALLED_APPS", # 安装app
+            "TEMPLATE_DIRS", # 模板目录
             "LOCALE_PATHS",
             "SECRET_KEY_FALLBACKS",
         )
+        # 显示配置集合
         self._explicit_settings = set()
         # 根据配置模块加载配置字段到Settings类上
         for setting in dir(mod):
             # 全大写字段才会被加载
             if setting.isupper():
                 setting_value = getattr(mod, setting)
-
+                # 特殊字段 数组列表类型判断
                 if setting in tuple_settings and not isinstance(
                     setting_value, (list, tuple)
                 ):
