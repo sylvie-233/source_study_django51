@@ -41,9 +41,12 @@ def get_internal_wsgi_application():
     from django.conf import settings
 
     app_path = getattr(settings, "WSGI_APPLICATION")
+
+    # handle服务默认实现
     if app_path is None:
         return get_wsgi_application()
 
+    # 加载WSGI_APPLICATION应用对象
     try:
         return import_string(app_path)
     except ImportError as err:

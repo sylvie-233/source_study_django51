@@ -18,12 +18,12 @@ from django.db import DEFAULT_DB_ALIAS, connections
 
 ALL_CHECKS = "__all__"
 
-
+# 命令执行异常
 class CommandError(Exception):
     """
     Exception class indicating a problem while executing a management
     command.
-
+    执行management中的Command过程中记录的异常信息
     If this exception is raised during the execution of a management
     command, it will be caught and turned into a nicely-printed error
     message to the appropriate output stream (i.e., stderr); as a
@@ -33,6 +33,7 @@ class CommandError(Exception):
     """
 
     def __init__(self, *args, returncode=1, **kwargs):
+        # 返回码为1
         self.returncode = returncode
         super().__init__(*args, **kwargs)
 
@@ -181,6 +182,7 @@ class OutputWrapper(TextIOBase):
         self._out.write(style_func(msg))
 
 
+# 命令基类
 class BaseCommand:
     """
     The base class from which all management commands ultimately
@@ -254,6 +256,7 @@ class BaseCommand:
     """
 
     # Metadata about this command.
+    # 命令帮助信息
     help = ""
 
     # Configuration shortcuts that alter various logic.
@@ -284,6 +287,7 @@ class BaseCommand:
         ):
             raise TypeError("requires_system_checks must be a list or tuple.")
 
+    # 返回命令版本号
     def get_version(self):
         """
         Return the Django version, which should be correct for all built-in
@@ -292,6 +296,7 @@ class BaseCommand:
         """
         return django.get_version()
 
+    # 创建命令解析器
     def create_parser(self, prog_name, subcommand, **kwargs):
         """
         Create and return the ``ArgumentParser`` which will be used to
@@ -305,6 +310,7 @@ class BaseCommand:
             called_from_command_line=getattr(self, "_called_from_command_line", None),
             **kwargs,
         )
+        # 参数指定版本号
         self.add_base_argument(
             parser,
             "--version",
@@ -312,6 +318,7 @@ class BaseCommand:
             version=self.get_version(),
             help="Show program's version number and exit.",
         )
+        # 参数指定输出详细信息等级
         self.add_base_argument(
             parser,
             "-v",
@@ -324,6 +331,7 @@ class BaseCommand:
                 "3=very verbose output"
             ),
         )
+        # 参数指定配置文件
         self.add_base_argument(
             parser,
             "--settings",
@@ -333,6 +341,7 @@ class BaseCommand:
                 "DJANGO_SETTINGS_MODULE environment variable will be used."
             ),
         )
+        # 参数指定python包搜索路径
         self.add_base_argument(
             parser,
             "--pythonpath",
@@ -341,24 +350,28 @@ class BaseCommand:
                 '"/home/djangoprojects/myproject".'
             ),
         )
+        # 参数指定debug栈信息
         self.add_base_argument(
             parser,
             "--traceback",
             action="store_true",
             help="Raise on CommandError exceptions.",
         )
+        # 参数指定命令输出颜色
         self.add_base_argument(
             parser,
             "--no-color",
             action="store_true",
             help="Don't colorize the command output.",
         )
+        # 参数指定命令输出颜色
         self.add_base_argument(
             parser,
             "--force-color",
             action="store_true",
             help="Force colorization of the command output.",
         )
+        # 参数指定跳过参数检查
         if self.requires_system_checks:
             parser.add_argument(
                 "--skip-checks",
@@ -368,6 +381,7 @@ class BaseCommand:
         self.add_arguments(parser)
         return parser
 
+    # 解析器添加自定义参数
     def add_arguments(self, parser):
         """
         Entry point for subclassed commands to add custom arguments.
@@ -385,6 +399,7 @@ class BaseCommand:
                 break
         parser.add_argument(*args, **kwargs)
 
+    # 打印命令参数解析器帮助信息
     def print_help(self, prog_name, subcommand):
         """
         Print the help message for this command, derived from
@@ -433,6 +448,7 @@ class BaseCommand:
                 # configured settings).
                 pass
 
+    # 命令内部真正调用执行
     def execute(self, *args, **options):
         """
         Try to execute this command, performing system checks if needed (as
@@ -487,6 +503,7 @@ class BaseCommand:
         If there are only light messages (like warnings), print them to stderr
         and don't raise an exception.
         """
+        # TODO: 运行配置校验
         all_issues = checks.run_checks(
             app_configs=app_configs,
             tags=tags,
@@ -497,6 +514,7 @@ class BaseCommand:
         header, body, footer = "", "", ""
         visible_issue_count = 0  # excludes silenced warnings
 
+        # 打印调试信息
         if all_issues:
             debugs = [
                 e for e in all_issues if e.level < checks.INFO and not e.is_silenced()
@@ -574,19 +592,23 @@ class BaseCommand:
             else:
                 self.stdout.write(msg)
 
+    # 数据库迁移检查
     def check_migrations(self):
         """
         Print a warning if the set of migrations on disk don't match the
         migrations in the database.
         """
+        # TODO: 执行数据库迁移
         from django.db.migrations.executor import MigrationExecutor
 
         try:
+            # 创建数据库迁移执行器
             executor = MigrationExecutor(connections[DEFAULT_DB_ALIAS])
         except ImproperlyConfigured:
             # No databases are configured (or the dummy one)
             return
 
+        # 构建数据库迁移计划
         plan = executor.migration_plan(executor.loader.graph.leaf_nodes())
         if plan:
             apps_waiting_migration = sorted(
@@ -607,6 +629,7 @@ class BaseCommand:
                 self.style.NOTICE("Run 'python manage.py migrate' to apply them.")
             )
 
+    # 自定义命令的真正执行逻辑
     def handle(self, *args, **options):
         """
         The actual logic of the command. Subclasses must implement

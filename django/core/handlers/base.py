@@ -137,6 +137,7 @@ class BaseHandler:
         """Return an HttpResponse object for the given HttpRequest."""
         # Setup default url resolver for this thread
         set_urlconf(settings.ROOT_URLCONF)
+        # 调用中间件处理链
         response = self._middleware_chain(request)
         response._resource_closers.append(request.close)
         if response.status_code >= 400:

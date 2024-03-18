@@ -26,7 +26,7 @@ from django.core.management.color import color_style
 from django.utils import autoreload
 
 
-# 从目录下的commands子目录查找 命令.py  文件（每个命令脚本中都必有一个Command类）
+# 从目录下的commands子目录查找 命令.py  文件（每个命令脚本中都必有一个Command类）（返回命令名称）
 def find_commands(management_dir):
     """
     Given a path to a management directory, return a list of all the command
@@ -39,7 +39,8 @@ def find_commands(management_dir):
         if not is_pkg and not name.startswith("_")
     ]
 
-# 加载命令脚本的Command类
+# 加载命令脚本的Command类（app_name包名、name脚本名称）$app_name.management.commands.$name
+# 每个命令脚本中，必有一个Command类
 def load_command_class(app_name, name):
     """
     Given a command name and an application name, return the Command
@@ -49,7 +50,7 @@ def load_command_class(app_name, name):
     module = import_module("%s.management.commands.%s" % (app_name, name))
     return module.Command()
 
-# dict { key(命令名) : value(django.core|app名称) }
+# dict { key(命令名) : value(django.core|app名称（app包名）) }
 # 获取所有的命令脚本（默认脚本（django.core.management.commands）以及每个app下的commands目录）
 @functools.cache
 def get_commands():
@@ -70,6 +71,8 @@ def get_commands():
     The dictionary is cached on the first call and reused on subsequent
     calls.
     """
+
+    # 加载核心（django.core）Command
     commands = {name: "django.core" for name in find_commands(__path__[0])}
 
     if not settings.configured:
@@ -77,12 +80,12 @@ def get_commands():
 
     # 加载每个app下的command
     for app_config in reversed(apps.get_app_configs()):
-        path = os.path.join(app_config.path, "management")
+        # path = os.path.join(app_config.path, "management")
         commands.update({name: app_config.name for name in find_commands(path)})
 
     return commands
 
-
+# 调用命令执行（可传入Command类和命令字符串）
 def call_command(command_name, *args, **options):
     """
     Call the given command, with the given options and args/kwargs.
@@ -103,23 +106,30 @@ def call_command(command_name, *args, **options):
         call_command(cmd, verbosity=0, interactive=False)
         # Do something with cmd ...
     """
+    # 传入的为命令类
     if isinstance(command_name, BaseCommand):
         # Command object passed in.
         command = command_name
+        # command_name为命令名称
         command_name = command.__class__.__module__.split(".")[-1]
+    # 传入的为字符串
     else:
         # Load the command object by name.
         try:
+            # 根据命令名称获取包名
             app_name = get_commands()[command_name]
         except KeyError:
+            # 没有该命令则报错
             raise CommandError("Unknown command: %r" % command_name)
 
+        # dict中存入的为Command类
         if isinstance(app_name, BaseCommand):
             # If the command is already loaded, use it directly.
             command = app_name
         else:
             command = load_command_class(app_name, command_name)
 
+    # 创建命令参数解析器
     # Simulate argument parsing to get the option defaults (see #10080 for details).
     parser = command.create_parser("", command_name)
     # Use the `dest` option name from the parser option
@@ -136,6 +146,7 @@ def call_command(command_name, *args, **options):
         else:
             parse_args.append(str(arg))
 
+    # 递归获取命令解析器参数
     def get_actions(parser):
         # Parser actions and actions from sub-parser choices.
         for opt in parser._actions:
@@ -144,6 +155,7 @@ def call_command(command_name, *args, **options):
                     yield from get_actions(sub_opt)
             else:
                 yield opt
+
 
     parser_actions = list(get_actions(parser))
     mutually_exclusive_required_options = {
@@ -159,6 +171,7 @@ def call_command(command_name, *args, **options):
             opt.required or opt in mutually_exclusive_required_options
         ):
             opt_dest_count = sum(v == opt.dest for v in opt_mapping.values())
+            # 命令选项设置重复
             if opt_dest_count > 1:
                 raise TypeError(
                     f"Cannot pass the dest {opt.dest!r} that matches multiple "
@@ -173,6 +186,7 @@ def call_command(command_name, *args, **options):
             else:
                 parse_args.append(str(value))
     defaults = parser.parse_args(args=parse_args)
+    # 合并命令选项
     defaults = dict(defaults._get_kwargs(), **arg_options)
     # Raise an error if any unknown options were passed.
     stealth_options = set(command.base_stealth_options + command.stealth_options)
@@ -194,6 +208,7 @@ def call_command(command_name, *args, **options):
     if "skip_checks" not in options:
         defaults["skip_checks"] = True
 
+    # 命令execute执行调用
     return command.execute(*args, **defaults)
 
 
@@ -204,12 +219,15 @@ class ManagementUtility:
     """
 
     def __init__(self, argv=None):
+        # 初始化传入参数，或者使用命令参数
         self.argv = argv or sys.argv[:]
+        # 执行程序名
         self.prog_name = os.path.basename(self.argv[0])
         if self.prog_name == "__main__.py":
             self.prog_name = "python -m django"
         self.settings_exception = None
 
+    # 获取命令帮助信息（返回字符串）
     def main_help_text(self, commands_only=False):
         """Return the script's main help text, as a string."""
         if commands_only:
@@ -357,7 +375,7 @@ class ManagementUtility:
         # For more details see #25420.
         sys.exit(0)
 
-    # django-admin执行入口
+    # django-admin执行入口（命令执行）
     def execute(self):
         """
         Given the command-line arguments, figure out which subcommand is being
@@ -378,8 +396,11 @@ class ManagementUtility:
             add_help=False,
             allow_abbrev=False,
         )
+        # 指定配置文件
         parser.add_argument("--settings")
+        # 指定python包搜索路径
         parser.add_argument("--pythonpath")
+        # 其它参数保存在args中
         parser.add_argument("args", nargs="*")  # catch-all
         try:
             options, args = parser.parse_known_args(self.argv[2:])
